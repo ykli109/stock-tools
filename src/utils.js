@@ -1,6 +1,7 @@
 const fs = require('fs');
 const xlsx = require('xlsx');
 const _ = require('lodash');
+const moment = require('moment');
 
 const {utils: xlsxUtils, read: xlsxRead, writeFile: xlsxWriteFile} = xlsx;
 
@@ -141,9 +142,62 @@ const appendStockDataRow = (filePath, sheetName, data) => {
     }
 };
 
+// 获取股票的基本信息
+const getInfosFromStockRawData = stockRawData => {
+    const startRow = 3;
+    // 日期、涨幅、主力净流入额、流入率
+    const columnMap = {C: 'dates', D: 'prices', E: 'riseRatios', G: 'inflows', H: 'inflowRatios'};
+    const keys = Object.keys(stockRawData);
+
+    const datas = keys.reduce((result, key) => {
+        const row = /^(C|D|E|G|H)([0-9]+)$/.exec(key);
+        if (row && row[2] >= startRow) {
+            const type = columnMap[row[1]];
+            if (!result[type]) {
+                result[type] = [];
+            }
+            result[type].push(stockRawData[key].v);
+        }
+
+        return result;
+    }, {});
+
+    return {
+        code: stockRawData['A' + startRow].v,
+        name: stockRawData['B' + startRow].v,
+        ...datas,
+
+    }
+};
+
+// 未来n个交易日的涨幅
+const getRiseRatio = (stockInfos, n, targetDate) => {
+    const {dates, riseRatios} = stockInfos;
+    const index = dates.findIndex(date => date === targetDate);
+
+    const filteredRatios = riseRatios.slice(index + 1, index + 1 + n);
+
+    return filteredRatios.reduce((sum, ratio) => sum + ratio, 0);
+};
+
+// 生成一组日期
+const generateDates = (dateStart, dateEnd, interval) => {
+    let dates = [];
+    let date = dateStart;
+    while(moment(date) <= moment(dateEnd)) {
+        dates.push(date);
+        date = moment(date).add(interval, 'days').format('YYYY-MM-DD');
+    }
+
+    return dates;
+}
+
 module.exports = {
     getExcelData,
     getStockData,
     getStockRawData,
-    appendStockDataRow
+    appendStockDataRow,
+    getInfosFromStockRawData,
+    getRiseRatio,
+    generateDates
 };
