@@ -65,7 +65,6 @@ const addDataWithHeader = data => {
 // 输出：{code: 股票代码, stockName: 股票名, data: 当日数据}
 const getProcessedStockData = sheetDatas => {
     // 按表格行分组
-    fs.writeFileSync('./sheetDatas.json', JSON.stringify(sheetDatas));
     const rawStockDatas = [];
     Object.keys(sheetDatas).forEach(key => {
         const rowNumMatch = /[0-9]+$/.exec(key);

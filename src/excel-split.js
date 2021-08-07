@@ -5,8 +5,9 @@ const {getStockData, appendStockDataRow} = require('./utils');
 const startTime = Date.now();
 
 const handleFiles = (filePaths, targetDir) => {
-    const datas = {};
+    const datasMap = new Map();
 
+    const startProcessTime = Date.now();
     filePaths.forEach(filePath => {
         const stockDatas = getStockData(filePath);
 
@@ -15,24 +16,28 @@ const handleFiles = (filePaths, targetDir) => {
             const fileName = `${stockName}${code}.xls`;
             const sheetName = `${stockName}${code}`.replace('*', '');
 
-            if (datas[sheetName]) {
-                datas[sheetName].data.push(data);
+            if (datasMap.get(sheetName)) {
+                datasMap.get(sheetName).data.push(data);
             }
             else {
-                datas[sheetName] = {
+                datasMap.set(sheetName, {
                     filePath: path.join(targetDir, fileName),
                     sheetName: sheetName,
                     data: [data],
-                }
+                });
             }
         });
     });
 
+    console.log('读文件+执行耗时：', moment.utc(Date.now() - startProcessTime).format('HH时mm分ss秒'));
 
-    Object.keys(datas).forEach(key => {
-        const {filePath, sheetName, data} = datas[key];
+    const startWriteTime = Date.now();
+    datasMap.forEach(({filePath, sheetName, data}, key) => {
         appendStockDataRow(filePath, sheetName, data);
+        // 写完就丢，释放内容
+        datasMap.delete(key);
     });
+    console.log('写文件耗时：', moment.utc(Date.now() - startWriteTime).format('HH时mm分ss秒'))
 };
 
 const getSplitFilePathsArray = (filePaths, splitCount) => {
@@ -50,8 +55,8 @@ const getSplitFilePathsArray = (filePaths, splitCount) => {
 };
 
 const fileDir = '/Users/lyk/Desktop/stock_data'
-const sourceDir = path.join(fileDir, '');
-const targetDir = path.join(fileDir, 'processed');
+const sourceDir = path.join(fileDir, 'original');
+const targetDir = path.join(fileDir, 'processed2');
 
 // 得到排好序的文件路径列表
 const filePaths = fs.readdirSync(sourceDir)
@@ -59,8 +64,9 @@ const filePaths = fs.readdirSync(sourceDir)
         .sort((name1, name2) => Number(/([0-9]{8})/.exec(name1)[1]) - Number(/([0-9]{8})/.exec(name2)[1]))  // 按日期排序
         .map(fileName => path.join(sourceDir, fileName)); // 生成绝对路径
 
-const filePathsArray = getSplitFilePathsArray(filePaths, 80);
+// const filePathsArray = getSplitFilePathsArray(filePaths, 80);
+const filePathsArray = [filePaths];
 
 filePathsArray.forEach(filePaths => handleFiles(filePaths, targetDir));
 
-console.log('耗时：', moment.utc(Date.now() - startTime).format('HH时mm分ss秒'))
+console.log('总耗时：', moment.utc(Date.now() - startTime).format('HH时mm分ss秒'))
