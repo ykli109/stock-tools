@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 const xlsx = require('xlsx');
 const _ = require('lodash');
 const moment = require('moment');
@@ -144,12 +145,12 @@ const appendStockDataRow = (filePath, sheetName, data) => {
 // 获取股票的基本信息
 const getInfosFromStockRawData = stockRawData => {
     const startRow = 3;
-    // 日期、涨幅、主力净流入额、流入率
-    const columnMap = {C: 'dates', D: 'prices', E: 'riseRatios', G: 'inflows', H: 'inflowRatios'};
+    // 日期、涨幅、主力净流入额、流入率、超大单净流入量、大单净流入量
+    const columnMap = {C: 'dates', D: 'prices', E: 'riseRatios', F: 'tradeAmounts', G: 'inflows', H: 'inflowRatios', N: 'extraLargeQuants', U: 'largeQuants'};
     const keys = Object.keys(stockRawData);
 
     const datas = keys.reduce((result, key) => {
-        const row = /^(C|D|E|G|H)([0-9]+)$/.exec(key);
+        const row = /^(C|D|E|F|G|H|N|U)([0-9]+)$/.exec(key);
         if (row && row[2] >= startRow) {
             const type = columnMap[row[1]];
             if (!result[type]) {
@@ -176,7 +177,7 @@ const getRiseRatio = (stockInfos, n, targetDate) => {
 
     const filteredRatios = riseRatios.slice(index + 1, index + 1 + n);
 
-    return filteredRatios.reduce((sum, ratio) => sum + ratio, 0);
+    return ((filteredRatios.reduce((res, ratio) => res * (1 + ratio/100), 1)) - 1) * 100;
 };
 
 // 生成一组日期
@@ -191,6 +192,38 @@ const generateDates = (dateStart, dateEnd, interval) => {
     return dates;
 }
 
+// 获取文件
+const copyFilesToFolder = (filePaths, folder) => {
+    !fs.existsSync(folder) && fs.mkdirSync(folder);
+    filePaths.forEach(filePath => {
+        const fileName = filePath.split('/').pop();
+        fs.copyFile(filePath, path.join(folder, fileName), error => console.log(error));
+    });
+};
+
+// 写表格
+const exportExcel = (filePath, data) => {
+    data = (Array.isArray(data) && Array.isArray(data[0])) ? data : [data];
+
+    if (fs.existsSync(filePath)) {
+        throw new Error(`${filePath}已存在！`);
+    }
+    else {
+        const workBook = xlsxUtils.book_new();
+        workBook.Props = {
+            Title: "结果",
+            Subject: "筛出数据",
+            Author: "liyunkun",
+            CreatedDate: new Date(),
+        };
+
+        workBook.SheetNames.push('筛出股票');
+        workBook.Sheets['筛出股票'] = xlsxUtils.aoa_to_sheet(data);;
+        xlsxWriteFile(workBook, filePath);
+    }
+};
+
+
 module.exports = {
     getExcelData,
     getStockData,
@@ -198,5 +231,7 @@ module.exports = {
     appendStockDataRow,
     getInfosFromStockRawData,
     getRiseRatio,
-    generateDates
+    generateDates,
+    copyFilesToFolder,
+    exportExcel,
 };
