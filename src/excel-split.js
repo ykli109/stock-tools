@@ -56,7 +56,7 @@ const getSplitFilePathsArray = (filePaths, splitCount) => {
 
 const fileDir = '/Users/lyk/Desktop/stock_data'
 const sourceDir = path.join(fileDir, 'original');
-const targetDir = path.join(fileDir, 'processed2');
+const targetDir = path.join(fileDir, 'processed');
 
 // 得到排好序的文件路径列表
 const filePaths = fs.readdirSync(sourceDir)
